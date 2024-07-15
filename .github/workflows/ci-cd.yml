@@ -1,0 +1,107 @@
+name: CI/CD
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  integrate:
+    name: Integrate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      version_tag: ${{ steps.semver.outputs.version_tag }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: "0"
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Setup dependencies
+        run: go mod download
+
+      - name: Test
+        run: make test
+
+      - name: Version
+        id: semver
+        uses: paulhatch/semantic-version@v5.3.0
+        with:
+          tag_prefix: v
+          major_pattern: "#major"
+          minor_pattern: "#minor"
+          search_commit_body: true
+
+      - name: Prepare build
+        if: github.ref == 'refs/heads/main'
+        id: prepare
+        run: |
+          # Change the version based on the branch
+          if [ "${{ github.ref}}" = "refs/heads/main" ]; then
+            # Use the actual version
+            echo "version=${{ steps.semver.outputs.version_tag }} (${{ github.sha }})" >> "$GITHUB_OUTPUT"
+          else
+            # Use the implicit version
+            echo "version=${{ steps.semver.outputs.version }} (${{ github.sha }})" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build
+        env:
+          VERSION: ${{ steps.prepare.outputs.version }}
+        run: |
+          GOOS=darwin  GOARCH=amd64  OUT=bin/tmpl-darwin-amd64       make build
+          GOOS=darwin  GOARCH=arm64  OUT=bin/tmpl-darwin-arm64       make build
+          GOOS=linux   GOARCH=amd64  OUT=bin/tmpl-linux-amd64        make build
+          GOOS=linux   GOARCH=arm64  OUT=bin/tmpl-linux-arm64        make build
+          GOOS=windows GOARCH=amd64  OUT=bin/tmpl-windows-amd64.exe  make build
+          ls -lh bin
+
+      - name: Run
+        run: |
+          bin/tmpl-linux-amd64 --version
+          bin/tmpl-linux-amd64 --help
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts
+          path: |
+            bin/tmpl-*
+            LICENSE
+
+      - name: Tag commit version
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git tag -a ${{ steps.semver.outputs.version_tag }} -m "${{ steps.semver.outputs.version_tag }}"
+          git push origin ${{ steps.semver.outputs.version_tag }}
+
+  deliver:
+    name: Deliver
+    needs: integrate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: artifacts
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.integrate.outputs.version_tag }}
+          files: |
+            bin/tmpl-*
+            LICENSE

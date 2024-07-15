@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: "💡 Ideas"
+    url: https://github.com/jeremybower/tmpl/discussions/categories/feature-ideas
+    about: Share ideas for new features
+  - name: "🙏 Q&A"
+    url: https://github.com/jeremybower/tmpl/discussions/support
+    about: Ask the community for help

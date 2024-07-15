@@ -1,0 +1,3 @@
+FROM {{ .BaseImage }}
+
+{{ include (printf "includes/%s.tmpl" .LanguageCode) . }}
