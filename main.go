@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jeremybower/tmpl/internal"
 	"github.com/urfave/cli/v2"
 )
 
@@ -17,13 +18,13 @@ var Version string
 var license string
 
 func main() {
-	if err := NewApp().Run(os.Args); err != nil {
+	if err := newApp().Run(os.Args); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 		os.Exit(1)
 	}
 }
 
-func NewApp() *cli.App {
+func newApp() *cli.App {
 	app := cli.NewApp()
 	app.Name = "tmpl"
 	app.Usage = "Generates text from Go templates and YAML configuration files."
@@ -57,7 +58,7 @@ func NewApp() *cli.App {
 				}
 
 				// Parse the templates
-				t, err := NewTemplate(c.Args().Slice())
+				t, err := internal.NewTemplate(c.Args().Slice())
 				exitIfError(err)
 
 				// Create the output file.
@@ -65,13 +66,13 @@ func NewApp() *cli.App {
 				exitIfError(err)
 
 				// Load the data.
-				var data *Data
+				var data *internal.Data
 				for _, path := range c.StringSlice("config") {
 					if data == nil {
-						data, err = NewData(path)
+						data, err = internal.NewData(path)
 						exitIfError(err)
 					} else {
-						d, err := NewData(path)
+						d, err := internal.NewData(path)
 						exitIfError(err)
 						data.Merge(d)
 					}

@@ -1,4 +1,4 @@
-package main
+package internal
 
 import (
 	"io"
@@ -6,7 +6,7 @@ import (
 	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
-	"github.com/jeremybower/tmpl/funcs"
+	"github.com/jeremybower/tmpl/internal/funcs"
 )
 
 type Template struct {
