@@ -93,6 +93,17 @@ tpml -c ../config.yml -c Dockerfile.yml -o Dockerfile Dockerfile.tmpl includes/*
 
 See [Generating a Dockerfile](#generating-a-dockerfile) for the complete example.
 
+## Template Functions
+
+Tmpl includes all the functions provided by [sprig](http://masterminds.github.io/sprig/) and additional functions that support working with multiple templates and config files:
+
+| Function        | Description                                                                                                                                                                                                                                                                                       |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `globFilter`    | Accepts a glob pattern as the first parameter and a list of files as the second parameter. It is useful when combined with `listTemplates` to filter the set of templates to just those matching a specific pattern. For example, to include all templates at a specific path (`include/*.tmpl`). |
+| `include`       | Similar to the standard `template` function, but the first parameter is a pipeline. The second parameter is the data to pass to the named template.                                                                                                                                               |
+| `listTemplates` | Accepts no parameters and returns the sorted list of paths to all templates provided as arguments to the `tmpl` command.                                                                                                                                                                          |
+| `require`       | Similar to the standard substitution approach of `{{ .Name }}`, but requires that the value is not the zero value. For example, `{{ require .Name }}`.                                                                                                                                            |
+
 ## Examples
 
 ### Generating a Dockerfile
