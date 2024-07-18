@@ -23,7 +23,7 @@ VERSION ?= v0.0.0
 build: ## Build the command.
 build:
 	@mkdir -p bin
-	@go build -ldflags="-X 'main.Version=${VERSION}'" -o ${OUT} ./cmd
+	@go build -ldflags="-X 'main.Version=${VERSION}'" -o ${OUT} .
 
 #
 # Clean

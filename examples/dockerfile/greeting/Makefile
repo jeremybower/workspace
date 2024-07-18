@@ -7,4 +7,4 @@ clean:
 	@rm -f Dockerfile
 
 Dockerfile:
-	@tmpl -c ../config.yml -c Dockerfile.yml -o Dockerfile Dockerfile.tmpl includes/*.tmpl
+	@tmpl generate -c ../config.yml -c Dockerfile.yml -o Dockerfile Dockerfile.tmpl includes/*.tmpl

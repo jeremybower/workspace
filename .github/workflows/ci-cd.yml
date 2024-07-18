@@ -58,6 +58,7 @@ jobs:
 
       - name: Build
         env:
+          LICENSE: ${{ steps.prepare.outputs.license }}
           VERSION: ${{ steps.prepare.outputs.version_with_sha }}
         run: |
           GOOS=darwin  GOARCH=amd64  OUT=bin/tmpl-darwin-amd64       make build
@@ -75,8 +76,11 @@ jobs:
 
       - name: Run
         run: |
-          bin/tmpl-linux-amd64 --version
-          bin/tmpl-linux-amd64 --help
+          test_command() { echo "--------------"; echo "Testing: $1"; eval $1 || exit 1; }
+          test_command "bin/tmpl-linux-amd64 --version"
+          test_command "bin/tmpl-linux-amd64 --help"
+          test_command "bin/tmpl-linux-amd64 generate --help"
+          test_command "bin/tmpl-linux-amd64 license"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

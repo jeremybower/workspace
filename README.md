@@ -69,26 +69,23 @@ PS> Invoke-WebRequest -Uri 'https://github.com/jeremybower/tmpl/releases/latest/
 ## Usage
 
 ```sh
-$ tmpl --help
-Generates text from Go-style templates
+$ tmpl generate --help
+NAME:
+   tmpl generate - Generate text from template and configuration files
 
-Usage:
-  tmpl [flags] template1 template2...
+USAGE:
+   tmpl generate [command options]
 
-Examples:
-tmpl --config c1.yml --config c2.yml --out dest t1.tmpl t2.tmpl...
-
-Flags:
-  -c, --config stringArray   paths to configuration files
-  -h, --help                 help for tmpl
-  -o, --out string           path where the generated files will be written
-  -v, --version              version for tmpl
+OPTIONS:
+   --config value, -c value [ --config value, -c value ]  path(s) to configuration files
+   --out value, -o value                                  path to write the generated file
+   --help, -h                                             show help
 ```
 
 Tmpl accepts multiple config files, a single destination file and multiple templates. For example, generating a Dockerfile might require top-level configuration and local configuration files, plus other templates:
 
 ```sh
-tpml -c ../config.yml -c Dockerfile.yml -o Dockerfile Dockerfile.tmpl includes/*.tmpl
+tmpl generate -c ../config.yml -c Dockerfile.yml -o Dockerfile Dockerfile.tmpl includes/*.tmpl
 ```
 
 See [Generating a Dockerfile](#generating-a-dockerfile) for the complete example.
@@ -197,7 +194,7 @@ To generate the Dockerfile, run:
 
 ```sh
 $ cd greeting
-$ tpml -c ../config.yml,Dockerfile.yml -o Dockerfile Dockerfile.tmpl includes/*.tmpl
+$ tpml generate -c ../config.yml,Dockerfile.yml -o Dockerfile Dockerfile.tmpl includes/*.tmpl
 Generated 1 file in 2.999958ms
 ```
 
