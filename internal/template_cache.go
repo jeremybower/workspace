@@ -11,13 +11,15 @@ import (
 
 type TemplateCache struct {
 	mounts    Mounts
+	options   Options
 	templates map[string]*template.Template
 	mutex     sync.RWMutex
 }
 
-func NewTemplateCache(mounts Mounts) *TemplateCache {
+func NewTemplateCache(mounts Mounts, opts Options) *TemplateCache {
 	return &TemplateCache{
 		mounts:    mounts,
+		options:   opts,
 		templates: make(map[string]*template.Template),
 	}
 }
@@ -54,7 +56,7 @@ func (cache *TemplateCache) Template(name string) (*Template, error) {
 			}
 
 			// Create and parse the template.
-			t, err = template.New(name).Funcs(sprig.FuncMap()).Funcs(DummyFunctions.FuncMap()).Parse(s)
+			t, err = template.New(name).Option("missingkey=" + cache.options.MissingKey).Funcs(sprig.FuncMap()).Funcs(DummyFunctions.FuncMap()).Parse(s)
 			if err != nil {
 				return nil, err
 			}

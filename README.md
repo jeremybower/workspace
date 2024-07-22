@@ -79,6 +79,7 @@ USAGE:
 
 OPTIONS:
    --config value, -c value [ --config value, -c value ]  Apply configuration data to the templates
+   --missingkey value                                     Controls the behavior during execution if a map is indexed with a key that is not present in the map (default: error)
    --mount value, -m value [ --mount value, -m value ]    Attach a filesystem mount to the template engine
    --out value, -o value                                  Write the generated text to file
    --help, -h                                             show help

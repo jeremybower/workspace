@@ -84,14 +84,14 @@ func (th *TestHarness) NewMounts(specs ...string) Mounts {
 // Templates
 //-----------------------------------------------------------------------------
 
-func (th *TestHarness) Execute(tmplFilename string, mountSpecs []string, configFilenames []string, outFilename string) *Result {
-	result, err := Execute(tmplFilename, mountSpecs, configFilenames, outFilename, th.fs)
+func (th *TestHarness) Execute(tmplFilename string, mountSpecs []string, configFilenames []string, outFilename string, opts Options) *Result {
+	result, err := Execute(th.fs, tmplFilename, mountSpecs, configFilenames, outFilename, opts)
 	require.NoError(th.t, err)
 	require.NotNil(th.t, result)
 	return result
 }
 
-func (th *TestHarness) ExecuteString(tmplFilename string, mountSpecs []string, configFilenames []string, outFilename string) (string, *Result) {
-	result := th.Execute(tmplFilename, mountSpecs, configFilenames, outFilename)
+func (th *TestHarness) ExecuteString(tmplFilename string, mountSpecs []string, configFilenames []string, outFilename string, opts Options) (string, *Result) {
+	result := th.Execute(tmplFilename, mountSpecs, configFilenames, outFilename, opts)
 	return th.ReadFileString(outFilename), result
 }

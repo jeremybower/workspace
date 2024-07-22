@@ -8,12 +8,22 @@ import (
 	"github.com/spf13/afero"
 )
 
+type Options struct {
+	MissingKey string
+}
+
+func DefaultOptions() Options {
+	return Options{
+		MissingKey: "error",
+	}
+}
+
 type Result struct {
 	Filenames []string
 	Duration  time.Duration
 }
 
-func Execute(tmplFilename string, mountSpecs []string, configFilenames []string, outFilename string, fs afero.Fs) (*Result, error) {
+func Execute(fs afero.Fs, tmplFilename string, mountSpecs []string, configFilenames []string, outFilename string, opts Options) (*Result, error) {
 	// Start the timer.
 	start := time.Now()
 
@@ -40,7 +50,7 @@ func Execute(tmplFilename string, mountSpecs []string, configFilenames []string,
 	}
 
 	// Execute the template.
-	err = execute(tmplFilename, mounts, configSpec, outFilename, fs)
+	err = execute(fs, tmplFilename, mounts, configSpec, outFilename, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -52,9 +62,9 @@ func Execute(tmplFilename string, mountSpecs []string, configFilenames []string,
 	}, nil
 }
 
-func execute(tmplFilename string, mounts Mounts, configSpec *ConfigSpec, outFilename string, fs afero.Fs) error {
+func execute(fs afero.Fs, tmplFilename string, mounts Mounts, configSpec *ConfigSpec, outFilename string, opts Options) error {
 	// Create the template cache.
-	templateManager := NewTemplateCache(mounts)
+	templateManager := NewTemplateCache(mounts, opts)
 
 	// Create the template.
 	t, err := templateManager.Template(tmplFilename)

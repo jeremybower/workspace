@@ -30,7 +30,7 @@ func TestDirsFunc(t *testing.T) {
 
 	filename := "/target/filename"
 	mounts := th.NewMounts(spec)
-	cache := NewTemplateCache(mounts)
+	cache := NewTemplateCache(mounts, DefaultOptions())
 	funcs := NewFunctions(filename, mounts, cache)
 
 	dirs, err := funcs.dirsFunc("/target/*")
@@ -69,7 +69,7 @@ func TestFilesFunc(t *testing.T) {
 
 	filename := "/target/filename"
 	mounts := th.NewMounts(spec)
-	cache := NewTemplateCache(mounts)
+	cache := NewTemplateCache(mounts, DefaultOptions())
 	funcs := NewFunctions(filename, mounts, cache)
 
 	dirs, err := funcs.filesFunc("/target/*")
@@ -131,7 +131,7 @@ func TestIncludeFunc(t *testing.T) {
 
 			filename := "/target/filename"
 			mounts := th.NewMounts(spec)
-			cache := NewTemplateCache(mounts)
+			cache := NewTemplateCache(mounts, DefaultOptions())
 			funcs := NewFunctions(filename, mounts, cache)
 
 			content, err := funcs.includeFunc("/target/a", tt.data)
@@ -181,7 +181,7 @@ func TestIncludeTextFunc(t *testing.T) {
 
 			filename := "/target/filename"
 			mounts := th.NewMounts(spec)
-			cache := NewTemplateCache(mounts)
+			cache := NewTemplateCache(mounts, DefaultOptions())
 			funcs := NewFunctions(filename, mounts, cache)
 
 			content, err := funcs.includeFunc("/target/a", nil)

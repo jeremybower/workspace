@@ -41,6 +41,12 @@ func newApp() *cli.App {
 					Aliases: []string{"c"},
 					Usage:   "Apply configuration data to the templates",
 				},
+				&cli.StringFlag{
+					Name:        "missingkey",
+					Usage:       "Controls the behavior during execution if a map is indexed with a key that is not present in the map",
+					DefaultText: "error",
+					Value:       "error",
+				},
 				&cli.StringSliceFlag{
 					Name:    "mount",
 					Aliases: []string{"m"},
@@ -63,13 +69,18 @@ func newApp() *cli.App {
 					exitWithMessage("Error: Exactly one argument is required.")
 				}
 
+				// Collect the options.
+				opts := internal.Options{
+					MissingKey: c.String("missingkey"),
+				}
+
 				// Execute the template.
+				fs := afero.NewOsFs()
 				templateFilename := c.Args().First()
 				mountSpecs := c.StringSlice("mount")
 				configFilenames := c.StringSlice("config")
 				outFilename := c.String("out")
-				fs := afero.NewOsFs()
-				result, err := internal.Execute(templateFilename, mountSpecs, configFilenames, outFilename, fs)
+				result, err := internal.Execute(fs, templateFilename, mountSpecs, configFilenames, outFilename, opts)
 				exitIfError(err)
 
 				// Print the results.

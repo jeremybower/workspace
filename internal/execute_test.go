@@ -28,7 +28,7 @@ func TestExecute(t *testing.T) {
 	th.WriteFileString(configFilename, "Config:\n  Test: Hello, World!")
 
 	outFilename := path.Join(th.TempDir(), "out")
-	s, result := th.ExecuteString("/target/a", []string{spec}, []string{configFilename}, outFilename)
+	s, result := th.ExecuteString("/target/a", []string{spec}, []string{configFilename}, outFilename, DefaultOptions())
 
 	assert.Equal(t, "Data: Hello, World!\nFilename: /target/b/c\nDirs: [/target/b]\nFiles: [/target/a]", s)
 	assert.ElementsMatch(t, []string{outFilename}, result.Filenames)
