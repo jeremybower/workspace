@@ -12,6 +12,7 @@ It is a standalone tool that can be used with Go, Node.js, Python, Ruby, PHP, Ru
 - [Features](#features)
 - [Installation](#installation)
 - [Usage](#usage)
+- [Template Functions](#template-functions)
 - [Examples](#examples)
   - [Generating a Dockerfile](#generating-a-dockerfile)
 - [Contributing](#contributing)
@@ -77,15 +78,16 @@ USAGE:
    tmpl generate [command options]
 
 OPTIONS:
-   --config value, -c value [ --config value, -c value ]  path(s) to configuration files
-   --out value, -o value                                  path to write the generated file
+   --config value, -c value [ --config value, -c value ]  Apply configuration data to the templates
+   --mount value, -m value [ --mount value, -m value ]    Attach a filesystem mount to the template engine
+   --out value, -o value                                  Write the generated text to file
    --help, -h                                             show help
 ```
 
-Tmpl accepts multiple config files, a single destination file and multiple templates. For example, generating a Dockerfile might require top-level configuration and local configuration files, plus other templates:
+Tmpl accepts multiple config files, a single destination file and mounts to access the file system at known paths. For example, generating a Dockerfile might require general configuration and specific configuration files, plus other templates:
 
 ```sh
-tmpl generate -c ../config.yml -c Dockerfile.yml -o Dockerfile Dockerfile.tmpl includes/*.tmpl
+tmpl generate -c config.yml -c Dockerfile.yml -m Dockerfile.tmpl:/Dockerfile -m includes:/includes -o Dockerfile /Dockerfile.tmpl
 ```
 
 See [Generating a Dockerfile](#generating-a-dockerfile) for the complete example.
@@ -94,12 +96,13 @@ See [Generating a Dockerfile](#generating-a-dockerfile) for the complete example
 
 Tmpl includes all the functions provided by [sprig](http://masterminds.github.io/sprig/) and additional functions that support working with multiple templates and config files:
 
-| Function        | Description                                                                                                                                                                                                                                                                                       |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `globFilter`    | Accepts a glob pattern as the first parameter and a list of files as the second parameter. It is useful when combined with `listTemplates` to filter the set of templates to just those matching a specific pattern. For example, to include all templates at a specific path (`include/*.tmpl`). |
-| `include`       | Similar to the standard `template` function, but the first parameter is a pipeline. The second parameter is the data to pass to the named template.                                                                                                                                               |
-| `listTemplates` | Accepts no parameters and returns the sorted list of paths to all templates provided as arguments to the `tmpl` command.                                                                                                                                                                          |
-| `require`       | Similar to the standard substitution approach of `{{ .Name }}`, but requires that the value is not the zero value. For example, `{{ require .Name }}`.                                                                                                                                            |
+| Function      | Description                                                                                                                                                                              |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dirs`        | Lists all the directories that were mounted. The only parameter is a glob pattern to match against the directory names.                                                                  |
+| `filename`    | Returns the filename of the current template.                                                                                                                                            |
+| `files`       | Lists all the files that were mounted. The only parameter is a glob pattern to match against the file names.                                                                             |
+| `include`     | Similar to the standard `template` function, but the first parameter accepts a pipeline to select templates dynamically. The second parameter is the data to pass to the named template. |
+| `includeText` | Similar to `include` function, but passes the file's text through unchanged. The only parameter is a pipeline to select the files dynamically.                                           |
 
 ## Examples
 
@@ -109,21 +112,20 @@ The full example is available in `examples/dockerfile`:
 
 ```txt
 .
+├── Dockerfile <--- generate this file
+├── Dockerfile.tmpl
+├── Dockerfile.yml
+├── Makefile
 ├── config.yml
-└── greeting
-    ├── Dockerfile <--- generate this file
-    ├── Dockerfile.tmpl
-    ├── Dockerfile.yml
-    ├── Makefile
-    └── includes
-        ├── en.tmpl
-        └── fr.tmpl
+└── includes
+    ├── en.tmpl
+    └── fr.tmpl
 ```
 
 The Dockerfile can be generated with:
 
 ```sh
-cd examples/dockerfile/greeting
+cd examples/dockerfile
 make Dockerfile
 make build
 make clean
@@ -133,7 +135,7 @@ There are three parts to this example: config files, template files and the comm
 
 #### Step 1: Config Files
 
-Setup a top-level configuration file to use the same defaults for all Dockerfiles in a project:
+Setup a general configuration file to use the same defaults for all Dockerfiles in a project:
 
 `config.yml`:
 
@@ -143,9 +145,9 @@ Config:
   BaseImage: "ubuntu:24.04"
 ```
 
-Use a local configuration file to change the generated output:
+Use a specific configuration file to change the generated output:
 
-`greeting/Dockerfile.yml`:
+`Dockerfile.yml`:
 
 ```yml
 Config:
@@ -166,23 +168,23 @@ Notice that `LanguageCode` was overwritten by the second configuration file.
 
 Create a main template for the Dockerfile:
 
-`greeting/Dockerfile.tmpl`:
+`Dockerfile.tmpl`:
 
 ```Dockerfile
 FROM {{ .BaseImage }}
 
-{{ include (printf "includes/%s.tmpl" .LanguageCode) }}
+{{ include (printf "includes/%s.tmpl" .LanguageCode) . }}
 ```
 
 Create template files to include for each language:
 
-`greeting/includes/en.tmpl`:
+`includes/en.tmpl`:
 
 ```Dockerfile
 CMD ["echo", "Hello!"]
 ```
 
-`greeting/includes/fr.tmpl`:
+`includes/fr.tmpl`:
 
 ```Dockerfile
 CMD ["echo", "Bonjour!"]
@@ -193,9 +195,9 @@ CMD ["echo", "Bonjour!"]
 To generate the Dockerfile, run:
 
 ```sh
-$ cd greeting
-$ tpml generate -c ../config.yml,Dockerfile.yml -o Dockerfile Dockerfile.tmpl includes/*.tmpl
-Generated 1 file in 2.999958ms
+$ make Dockerfile
+Generated 1 file(s) in 6.961916ms
+/tmpl/examples/dockerfile/Dockerfile
 ```
 
 The resulting `Dockerfile` contains:

@@ -2,77 +2,37 @@ package internal
 
 import (
 	"io"
-	"os"
+	"strings"
 	"text/template"
-
-	"github.com/Masterminds/sprig/v3"
-	"github.com/jeremybower/tmpl/internal/funcs"
 )
 
 type Template struct {
-	t *template.Template
+	t     *template.Template
+	cache *TemplateCache
 }
 
 func NewTemplate(
-	paths []string,
-) (*Template, error) {
-	// Create a uninitialized template functions to parse the templates.
-	fm := templateFuncs(nil, nil)
-
-	// Parse the included templates.
-	templates := make(map[string]*template.Template)
-	for _, path := range paths {
-		t, err := parseTemplate(path, fm)
-		if err != nil {
-			return nil, err
-		}
-
-		templates[path] = t
-	}
-
-	// Create initialized template functions.
-	fm = templateFuncs(paths, templates)
-
-	// Update the functions on the included templates.
-	for _, t := range templates {
-		t.Funcs(fm)
-	}
-
-	// Success.
-	return &Template{templates[paths[0]]}, nil
+	t *template.Template,
+	cache *TemplateCache,
+) *Template {
+	return &Template{t, cache}
 }
 
-func (t *Template) Execute(wr io.Writer, data interface{}) error {
-	return t.t.Execute(wr, data)
-}
-
-func parseTemplate(path string, fm template.FuncMap) (*template.Template, error) {
-	b, err := os.ReadFile(path)
+func (t *Template) Execute(wr io.Writer, mounts Mounts, data any) error {
+	cloned, err := t.t.Clone()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return template.New(path).Funcs(fm).Parse(string(b))
+	filename := t.t.Name()
+	funcs := NewFunctions(filename, mounts, t.cache)
+	cloned.Funcs(funcs.FuncMap())
+
+	return cloned.Execute(wr, data)
 }
 
-func templateFuncs(
-	paths []string,
-	templates map[string]*template.Template,
-) template.FuncMap {
-	fm := sprig.FuncMap()
-
-	addFunc(fm, "globFilter", funcs.GlobFilter())
-	addFunc(fm, "include", funcs.Include(templates))
-	addFunc(fm, "listTemplates", funcs.ListTemplates(paths))
-	addFunc(fm, "require", funcs.Require())
-
-	return fm
-}
-
-func addFunc(fm template.FuncMap, name string, f interface{}) {
-	if fm[name] != nil {
-		panic("function already exists")
-	}
-
-	fm[name] = f
+func (t *Template) ExecuteString(mounts Mounts, data any) (string, error) {
+	buf := new(strings.Builder)
+	err := t.Execute(buf, mounts, data)
+	return buf.String(), err
 }

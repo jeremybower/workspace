@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/jeremybower/tmpl/internal"
+	"github.com/spf13/afero"
 	"github.com/urfave/cli/v2"
 )
 
@@ -39,55 +39,46 @@ func newApp() *cli.App {
 				&cli.StringSliceFlag{
 					Name:    "config",
 					Aliases: []string{"c"},
-					Usage:   "path(s) to configuration files",
+					Usage:   "Apply configuration data to the templates",
+				},
+				&cli.StringSliceFlag{
+					Name:    "mount",
+					Aliases: []string{"m"},
+					Usage:   "Attach a filesystem mount to the template engine",
 				},
 				&cli.StringFlag{
 					Name:    "out",
 					Aliases: []string{"o"},
-					Usage:   "path to write the generated file",
+					Usage:   "Write the generated text to file",
 				},
 			},
 			Action: func(c *cli.Context) error {
-				// Start a timer.
-				start := time.Now()
-
 				// Check for the out flag.
 				if !c.IsSet("out") {
-					fmt.Fprintln(os.Stderr, "Error: The --out flag is required.")
-					os.Exit(1)
+					exitWithMessage("Error: The --out flag is required.")
 				}
 
-				// Parse the templates
-				t, err := internal.NewTemplate(c.Args().Slice())
-				exitIfError(err)
-
-				// Create the output file.
-				out, err := os.Create(c.String("out"))
-				exitIfError(err)
-
-				// Load the data.
-				var data *internal.Data
-				for _, path := range c.StringSlice("config") {
-					if data == nil {
-						data, err = internal.NewData(path)
-						exitIfError(err)
-					} else {
-						d, err := internal.NewData(path)
-						exitIfError(err)
-						data.Merge(d)
-					}
+				// Check fo exactly one argument.
+				if c.NArg() != 1 {
+					exitWithMessage("Error: Exactly one argument is required.")
 				}
 
 				// Execute the template.
-				err = t.Execute(out, data.Config)
+				templateFilename := c.Args().First()
+				mountSpecs := c.StringSlice("mount")
+				configFilenames := c.StringSlice("config")
+				outFilename := c.String("out")
+				fs := afero.NewOsFs()
+				result, err := internal.Execute(templateFilename, mountSpecs, configFilenames, outFilename, fs)
 				exitIfError(err)
 
-				// Close the file.
-				err = out.Close()
-				exitIfError(err)
+				// Print the results.
+				fmt.Printf("Generated %d file(s) in %s\n", len(result.Filenames), result.Duration)
+				for _, filename := range result.Filenames {
+					fmt.Println(filename)
+				}
 
-				// Log stats
-				fmt.Printf("Generated 1 file in %s\n", time.Since(start))
+				// Success.
 				return nil
 			},
 		},
@@ -115,4 +106,9 @@ func exitIfError(err error) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+}
+
+func exitWithMessage(msg string) {
+	fmt.Fprintln(os.Stderr, msg)
+	os.Exit(1)
 }
