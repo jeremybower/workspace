@@ -1,7 +1,5 @@
 {
-  "words": [
-    "Errln",
-    "jeremybower",
-    "tmpl"
-  ]
+  "enableFiletypes": ["!go"],
+  "language": "en,en-CA",
+  "words": ["Errln", "jeremybower", "tmpl"]
 }
