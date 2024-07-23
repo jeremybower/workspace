@@ -1,4 +1,4 @@
-# Tmlp
+# Tmpl
 
 [![Release](https://img.shields.io/github/release/jeremybower/tmpl.svg)](https://github.com/jeremybower/tmpl/releases)
 [![Go Report](https://goreportcard.com/badge/github.com/jeremybower/tmpl)](https://goreportcard.com/report/github.com/jeremybower/tmpl)
