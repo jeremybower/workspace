@@ -1,5 +1,5 @@
 BIN     ?= tmpl
-IMAGE   ?= ghcr.io/jeremybower/tmpl:latest
+IMAGE   ?= ghcr.io/jeremybower/tmpl
 SUFFIX	?=
 VERSION ?= v0.0.0
 
@@ -57,8 +57,6 @@ image:
 	@if [ -z "${BIN}" ]; then echo "BIN is not set"; exit 1; fi
 	@if [ ! -f bin/${BIN} ]; then echo "bin/${BIN} does not exist"; exit 1; fi
 	@if [ -z "${IMAGE}" ]; then echo "IMAGE is not set"; exit 1; fi
-	@if [ -z "${SUFFIX}" ]; then echo "SUFFIX is not set"; exit 1; fi
-	@if [ -z "${TARGETPLATFORM}" ]; then echo "TARGETPLATFORM is not set"; exit 1; fi
 	@if [ -z "${VERSION}" ]; then echo "VERSION is not set"; exit 1; fi
 	@echo "$$DOCKERFILE" > Dockerfile
 	@docker build \
