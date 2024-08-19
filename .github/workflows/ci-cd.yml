@@ -64,7 +64,6 @@ jobs:
           GOOS=darwin  GOARCH=arm64  OUT=bin/tmpl-darwin-arm64       make build
           GOOS=linux   GOARCH=amd64  OUT=bin/tmpl-linux-amd64        make build
           GOOS=linux   GOARCH=arm64  OUT=bin/tmpl-linux-arm64        make build
-          GOOS=windows GOARCH=amd64  OUT=bin/tmpl-windows-amd64.exe  make build
           ls -lh bin
 
       - name: Checksum

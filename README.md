@@ -20,7 +20,7 @@ It is a standalone tool that can be used with Go, Node.js, Python, Ruby, PHP, Ru
 ## Features
 
 - Supports any text-based format (Dockerfile, etc.)
-- Available for Linux, macOS and Windows
+- Available for Linux and macOS
 - Lightweight and efficient
 - Customizable with one or more config files
 - Include multiple template files with glob filepaths
@@ -57,14 +57,6 @@ or `arm64`:
 ```sh
 $ sudo curl -fsSL -o /usr/local/bin/tmpl https://github.com/jeremybower/tmpl/releases/latest/download/tmpl-linux-arm64
 $ sudo chmod +x /usr/local/bin/tmpl
-```
-
-**Windows**
-
-Install the binary directly on Windows for `amd64`:
-
-```ps
-PS> Invoke-WebRequest -Uri 'https://github.com/jeremybower/tmpl/releases/latest/download/tmpl-windows-amd64.exe' -OutFile 'c:\temp\tmpl.exe'
 ```
 
 ## Usage
