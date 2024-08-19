@@ -46,7 +46,7 @@ clean:
 define DOCKERFILE
 FROM scratch
 
-COPY bin/${BIN} /tmpl
+COPY --chmod=0755 bin/${BIN} /tmpl
 
 ENTRYPOINT ["/tmpl"]
 endef
