@@ -58,7 +58,6 @@ jobs:
 
       - name: Build
         env:
-          LICENSE: ${{ steps.prepare.outputs.license }}
           VERSION: ${{ steps.prepare.outputs.version_with_sha }}
         run: |
           GOOS=darwin  GOARCH=amd64  OUT=bin/tmpl-darwin-amd64       make build
