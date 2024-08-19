@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    outputs:
+      version: ${{ steps.prepare.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -60,10 +62,10 @@ jobs:
         env:
           VERSION: ${{ steps.prepare.outputs.version_with_sha }}
         run: |
-          GOOS=darwin  GOARCH=amd64  OUT=bin/tmpl-darwin-amd64       make build
-          GOOS=darwin  GOARCH=arm64  OUT=bin/tmpl-darwin-arm64       make build
-          GOOS=linux   GOARCH=amd64  OUT=bin/tmpl-linux-amd64        make build
-          GOOS=linux   GOARCH=arm64  OUT=bin/tmpl-linux-arm64        make build
+          GOOS=darwin  GOARCH=amd64  BIN=tmpl-darwin-amd64  make build
+          GOOS=darwin  GOARCH=arm64  BIN=tmpl-darwin-arm64  make build
+          GOOS=linux   GOARCH=amd64  BIN=tmpl-linux-amd64   make build
+          GOOS=linux   GOARCH=arm64  BIN=tmpl-linux-arm64   make build
           ls -lh bin
 
       - name: Checksum
@@ -95,10 +97,10 @@ jobs:
           git config user.name github-actions
           git config user.email github-actions@github.com
           git tag -a ${{ steps.prepare.outputs.version }} -m "${{ steps.prepare.outputs.version }}"
-          git push origin ${{ steps.semver.outputs.version }}
+          git push origin ${{ steps.prepare.outputs.version }}
 
-  deliver:
-    name: Deliver
+  release:
+    name: Release
     needs: integrate
     runs-on: ubuntu-latest
     permissions:
@@ -121,3 +123,70 @@ jobs:
             bin/tmpl-*
             bin/checksums.txt
             LICENSE
+
+  image:
+    name: Image
+    needs: integrate
+    runs-on: ubuntu-latest
+    env:
+      IMAGE: ghcr.io/jeremybower/tmpl
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: artifacts
+
+      - name: Build image
+        env:
+          VERSION: ${{ needs.integrate.outputs.version }}
+        run: |
+          BIN=tmpl-darwin-amd64  IMAGE=${{ env.IMAGE }}  SUFFIX=-darwin-amd64  TARGETPLATFORM=darwin/amd64  make image
+          BIN=tmpl-darwin-arm64  IMAGE=${{ env.IMAGE }}  SUFFIX=-darwin-arm64  TARGETPLATFORM=darwin/arm64  make image
+          BIN=tmpl-linux-amd64   IMAGE=${{ env.IMAGE }}  SUFFIX=-linux-amd64   TARGETPLATFORM=linux/amd64   make image
+          BIN=tmpl-linux-arm64   IMAGE=${{ env.IMAGE }}  SUFFIX=-linux-arm64   TARGETPLATFORM=linux/arm64   make image
+          docker image ls
+
+      - name: Run image
+        run: |
+          test_image() { echo "--------------"; echo "Testing: $1"; docker run --rm $1 || exit 1; }
+          test_image "${{ env.IMAGE }}:latest-darwin-amd64 --version"
+          test_image "${{ env.IMAGE }}:latest-darwin-amd64 --help"
+          test_image "${{ env.IMAGE }}:latest-darwin-amd64 generate --help"
+          test_image "${{ env.IMAGE }}:latest-darwin-amd64 license"
+
+      - name: Tag commit
+        run: |
+          docker tag ${{ env.IMAGE }}:latest-darwin-amd64 ${{ env.IMAGE }}:commit-${{ github.sha }}
+          docker tag ${{ env.IMAGE }}:latest-darwin-arm64 ${{ env.IMAGE }}:commit-${{ github.sha }}
+          docker tag ${{ env.IMAGE }}:latest-linux-amd64  ${{ env.IMAGE }}:commit-${{ github.sha }}
+          docker tag ${{ env.IMAGE }}:latest-linux-arm64  ${{ env.IMAGE }}:commit-${{ github.sha }}
+
+      - name: Create multi-platform manifest
+        run: |
+          docker manifest create \
+            ${{ env.IMAGE }}:latest \
+            --amend ${{ env.IMAGE }}:latest-darwin-amd64 \
+            --amend ${{ env.IMAGE }}:latest-darwin-arm64 \
+            --amend ${{ env.IMAGE }}:latest-linux-amd64 \
+            --amend ${{ env.IMAGE }}:latest-linux-arm64
+
+      - name: Inspect multi-platform manifest
+        run: |
+          docker manifest inspect --verbose ${{ env.IMAGE }}:latest
+
+      - name: Login to container registry
+        uses: docker/login-action@v3
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Push
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          docker push --all-tags ${{ env.IMAGE }}:latest-darwin-amd64
+          docker push --all-tags ${{ env.IMAGE }}:latest-darwin-arm64
+          docker push --all-tags ${{ env.IMAGE }}:latest-linux-amd64
+          docker push --all-tags ${{ env.IMAGE }}:latest-linux-arm64
+          docker manifest push ${{ env.IMAGE }}:latest

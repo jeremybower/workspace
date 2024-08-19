@@ -1,8 +1,12 @@
+BIN     ?= tmpl
+IMAGE   ?= ghcr.io/jeremybower/tmpl:latest
+SUFFIX	?=
+VERSION ?= v0.0.0
+
 #
 # Help
 #
 
-.PHONY: help
 help: ## Show this help message.
 	@echo
 	@echo 'usage: make [target]'
@@ -11,36 +15,64 @@ help: ## Show this help message.
 	@echo
 	@egrep '^(.+)\:\ ##\ (.+)' ${MAKEFILE_LIST} | column -t -c 2 -s ':#'
 	@echo
+.PHONY: help
 
 #
-# Build Targets
+# Build
 #
 
-OUT ?= bin/tmpl
-VERSION ?= v0.0.0
-
-.PHONY: build
-build: ## Build the command.
+build: ## Build command.
 build:
+	@if [ -z "${BIN}" ]; then echo "BIN is not set"; exit 1; fi
+	@if [ -z "${VERSION}" ]; then echo "VERSION is not set"; exit 1; fi
 	@mkdir -p bin
-	@go build -ldflags="-X 'main.Version=${VERSION}'" -o ${OUT} .
+	@go build -ldflags="-X 'main.Version=${VERSION}'" -o bin/${BIN} .
+.PHONY: build
 
 #
 # Clean
 #
 
-.PHONY: clean
-clean: ## Clean the working directory.
+clean: ## Clean working directory.
 clean:
 	@rm -rf bin
 	@rm -rf coverage
+.PHONY: clean
 
 #
-# Test Targets
+# Image
 #
 
-.PHONY: test
-test: ## Run the tests.
+define DOCKERFILE
+FROM scratch
+
+COPY bin/${BIN} /tmpl
+
+ENTRYPOINT ["/tmpl"]
+endef
+export DOCKERFILE
+
+image: ## Build Docker image.
+image:
+	@if [ -z "${BIN}" ]; then echo "BIN is not set"; exit 1; fi
+	@if [ ! -f bin/${BIN} ]; then echo "bin/${BIN} does not exist"; exit 1; fi
+	@if [ -z "${IMAGE}" ]; then echo "IMAGE is not set"; exit 1; fi
+	@if [ -z "${SUFFIX}" ]; then echo "SUFFIX is not set"; exit 1; fi
+	@if [ -z "${TARGETPLATFORM}" ]; then echo "TARGETPLATFORM is not set"; exit 1; fi
+	@if [ -z "${VERSION}" ]; then echo "VERSION is not set"; exit 1; fi
+	@echo "$$DOCKERFILE" > Dockerfile
+	@docker build \
+		--platform ${TARGETPLATFORM} \
+		-t ${IMAGE}:latest${SUFFIX} \
+		-t ${IMAGE}:${VERSION}${SUFFIX} \
+		.
+.PHONY: image
+
+#
+# Test
+#
+
+test: ## Run tests.
 test:
 	@mkdir -p coverage
 	@GOEXPERIMENT=nocoverageredesign go test \
@@ -54,3 +86,4 @@ test:
 	@go tool cover \
 		-html=coverage/coverage.out \
 		-o coverage/coverage.html
+.PHONY: test
