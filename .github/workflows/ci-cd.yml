@@ -8,9 +8,9 @@ on:
       - "v*-prerelease+*" # excludes v1.2.3-prerelease+3
 
 jobs:
-  integrate:
-    name: Integrate
-    runs-on: ubuntu-latest
+  build:
+    name: Build
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
     outputs:
@@ -58,23 +58,19 @@ jobs:
             echo "version_with_sha=v0.0.0 (${{ github.sha }})" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build
+      - name: Build binaries for distribution
         env:
           VERSION: ${{ steps.prepare.outputs.version_with_sha }}
         run: |
-          GOOS=darwin  GOARCH=amd64  BIN=tmpl-darwin-amd64  make build
-          GOOS=darwin  GOARCH=arm64  BIN=tmpl-darwin-arm64  make build
-          GOOS=linux   GOARCH=amd64  BIN=tmpl-linux-amd64   make build
-          GOOS=linux   GOARCH=arm64  BIN=tmpl-linux-arm64   make build
-          ls -lh bin
+          make dist
 
-      - name: Checksum
+      - name: Create checksums of the binaries
         run: |
           cd bin
-          sha256sum tmpl-* > checksums.txt
-          sha256sum --check checksums.txt
+          sha256sum tmpl-* > checksums.sha256
+          sha256sum --check checksums.sha256
 
-      - name: Run
+      - name: Test binaries
         run: |
           test_command() { echo "--------------"; echo "Testing: $1"; eval $1 || exit 1; }
           test_command "bin/tmpl-linux-amd64 --version"
@@ -88,7 +84,7 @@ jobs:
           name: artifacts
           path: |
             bin/tmpl-*
-            bin/checksums.txt
+            bin/checksums.sha256
             LICENSE
 
       - name: Tag commit version
@@ -101,35 +97,10 @@ jobs:
 
   release:
     name: Release
-    needs: integrate
-    runs-on: ubuntu-latest
+    needs: build
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
-    if: startsWith(github.ref, 'refs/tags/v')
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: artifacts
-
-      - name: Draft a release
-        uses: softprops/action-gh-release@v2
-        with:
-          name: ${{ github.ref_name }}
-          tag_name: ${{ github.ref_name }}
-          generate_release_notes: true
-          draft: true
-          files: |
-            bin/tmpl-*
-            bin/checksums.txt
-            LICENSE
-
-  image:
-    name: Image
-    needs: integrate
-    runs-on: ubuntu-latest
-    env:
-      IMAGE: ghcr.io/jeremybower/tmpl
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -139,58 +110,66 @@ jobs:
 
       - name: Download artifacts
         uses: actions/download-artifact@v4
-        with:
-          name: artifacts
 
-      - name: Setup buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Setup artifacts
+        run: |
+          mv artifacts/bin .
+          rm -rf artifacts
 
-      - name: Set up QEMU
+      - name: Generate Dockerfile
+        run: |
+          make Dockerfile
+          cat Dockerfile
+
+      - name: Check workspace
+        run: |
+          tree -hp
+
+      - name: Configure QEMU
         uses: docker/setup-qemu-action@v3
 
-      - name: Build image
-        env:
-          VERSION: ${{ needs.integrate.outputs.version }}
-        run: |
-          BIN=tmpl-linux-amd64   IMAGE=${{ env.IMAGE }}  SUFFIX=-linux-amd64   TARGETPLATFORM=linux/amd64   make image
-          BIN=tmpl-linux-arm64   IMAGE=${{ env.IMAGE }}  SUFFIX=-linux-arm64   TARGETPLATFORM=linux/arm64   make image
-          docker image ls
+      - name: Configure Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Run image
+      - name: Check Docker environment
         run: |
-          test_image() { echo "--------------"; echo "Testing: $1"; docker run --rm $1 || exit 1; }
-          test_image "${{ env.IMAGE }}:latest-linux-amd64 --version"
-          test_image "${{ env.IMAGE }}:latest-linux-amd64 --help"
-          test_image "${{ env.IMAGE }}:latest-linux-amd64 generate --help"
-          test_image "${{ env.IMAGE }}:latest-linux-amd64 license"
+          set -x
+          docker version
+          docker buildx version
 
-      - name: Tag commit
-        run: |
-          docker tag ${{ env.IMAGE }}:latest-linux-amd64  ${{ env.IMAGE }}:commit-${{ github.sha }}
-          docker tag ${{ env.IMAGE }}:latest-linux-arm64  ${{ env.IMAGE }}:commit-${{ github.sha }}
+      - name: Generate Docker image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository }}
+          tags: |
+            type=sha,prefix=commit-,format=long
+            type=raw,value=${{ needs.build.outputs.version }}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+          flavor: |
+            latest=false
 
-      - name: Create multi-platform manifest
-        run: |
-          docker manifest create \
-            ${{ env.IMAGE }}:latest \
-            --amend ${{ env.IMAGE }}:latest-linux-amd64 \
-            --amend ${{ env.IMAGE }}:latest-linux-arm64
+      # Always build the docker image, but only push it for version tags
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: ${{ startsWith(github.ref, 'refs/tags/v') }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
 
-      - name: Inspect multi-platform manifest
-        run: |
-          docker manifest inspect --verbose ${{ env.IMAGE }}:latest
-
-      - name: Login to container registry
-        uses: docker/login-action@v3
+      # Only draft a release for version tags
+      - name: Draft a release
+        uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/v')
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Push
-        if: startsWith(github.ref, 'refs/tags/v')
-        run: |
-          docker push --all-tags ${{ env.IMAGE }}:latest-linux-amd64
-          docker push --all-tags ${{ env.IMAGE }}:latest-linux-arm64
-          docker manifest push ${{ env.IMAGE }}:latest
+          name: ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          draft: true
+          files: |
+            bin/tmpl-*
+            bin/checksums.sha256
+            LICENSE
