@@ -150,6 +150,13 @@ jobs:
           flavor: |
             latest=false
 
+      - name: Login to container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       # Always build the docker image, but only push it for version tags
       - name: Build Docker image
         uses: docker/build-push-action@v6
