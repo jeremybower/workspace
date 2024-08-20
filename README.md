@@ -59,6 +59,20 @@ $ sudo curl -fsSL -o /usr/local/bin/tmpl https://github.com/jeremybower/tmpl/rel
 $ sudo chmod +x /usr/local/bin/tmpl
 ```
 
+**Docker**
+
+Docker images are published to GitHub Container Registry ([`ghcr.io/jeremybower/tmpl`](https://ghcr.io/jeremybower/tmpl)).
+
+```sh
+$ docker run --rm -it ghcr.io/jeremybower/tmpl --help
+```
+
+If you wish to generate files, you will need to use Docker's [bind mount](https://docs.docker.com/storage/bind-mounts/) feature to make your local working directory (`pwd`) available inside the tmpl container:
+
+```sh
+$ docker run --rm -it -v "$(pwd)/workspace:/workspace" -w "/workspace" ghcr.io/jeremybower/tmpl generate -c config.yml -c Dockerfile.yml -m Dockerfile.tmpl:/Dockerfile -m includes:/includes -o Dockerfile /Dockerfile.tmpl
+```
+
 ## Usage
 
 ```sh
