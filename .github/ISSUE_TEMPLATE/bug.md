@@ -7,7 +7,7 @@ labels: "bug"
 **Description**
 
 - Version: <!-- use `tmpl -v` to get the version -->
-- Operating System: <!-- darwin, linux or windows -->
+- Operating System: <!-- darwin or linux -->
 - Architecture: <!-- amd64 or arm64 -->
 
 <!-- Include a brief description of the problem. -->

@@ -1,8 +1,11 @@
+SUFFIX	?=
+TAG     ?= latest
+VERSION ?= v0.0.0
+
 #
 # Help
 #
 
-.PHONY: help
 help: ## Show this help message.
 	@echo
 	@echo 'usage: make [target]'
@@ -11,36 +14,69 @@ help: ## Show this help message.
 	@echo
 	@egrep '^(.+)\:\ ##\ (.+)' ${MAKEFILE_LIST} | column -t -c 2 -s ':#'
 	@echo
+.PHONY: help
 
 #
-# Build Targets
+# Build
 #
 
-OUT ?= bin/tmpl
-VERSION ?= v0.0.0
-
-.PHONY: build
-build: ## Build the command.
+build: ## Build the command for the host platform.
 build:
 	@mkdir -p bin
-	@go build -ldflags="-X 'main.Version=${VERSION}'" -o ${OUT} .
+	@echo "Building bin/tmpl${SUFFIX} with version ${VERSION}..."
+	@CGO_ENABLED=0 go build -ldflags="-X 'main.Version=${VERSION}'" -o bin/tmpl${SUFFIX} .
+	@file bin/tmpl${SUFFIX}
+.PHONY: build
+
+dist: ## Build commands for all supported platforms.
+dist:
+	@GOOS=darwin  GOARCH=amd64  SUFFIX=-darwin-amd64  make --no-print-directory build
+	@GOOS=darwin  GOARCH=arm64  SUFFIX=-darwin-arm64  make --no-print-directory build
+	@GOOS=linux   GOARCH=amd64  SUFFIX=-linux-amd64   make --no-print-directory build
+	@GOOS=linux   GOARCH=arm64  SUFFIX=-linux-arm64   make --no-print-directory build
+.PHONY: dist
 
 #
 # Clean
 #
 
-.PHONY: clean
-clean: ## Clean the working directory.
+clean: ## Clean working directory.
 clean:
 	@rm -rf bin
 	@rm -rf coverage
+.PHONY: clean
 
 #
-# Test Targets
+# Image
 #
 
-.PHONY: test
-test: ## Run the tests.
+define DOCKERFILE
+FROM scratch
+
+ARG TARGETOS
+ARG TARGETARCH
+
+COPY --chmod=0755 bin/tmpl-$${TARGETOS}-$${TARGETARCH} /tmpl
+
+ENTRYPOINT ["/tmpl"]
+endef
+export DOCKERFILE
+
+image: ## Build Docker image.
+image: Dockerfile
+	@docker build -t ghcr.io/jeremybower/tmpl:${TAG} .
+.PHONY: image
+
+Dockerfile: ## Generate Dockerfile.
+Dockerfile:
+	@echo "$$DOCKERFILE" > Dockerfile
+.PHONY: Dockerfile
+
+#
+# Test
+#
+
+test: ## Run tests.
 test:
 	@mkdir -p coverage
 	@GOEXPERIMENT=nocoverageredesign go test \
@@ -54,3 +90,4 @@ test:
 	@go tool cover \
 		-html=coverage/coverage.out \
 		-o coverage/coverage.html
+.PHONY: test

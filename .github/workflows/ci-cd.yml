@@ -8,11 +8,13 @@ on:
       - "v*-prerelease+*" # excludes v1.2.3-prerelease+3
 
 jobs:
-  integrate:
-    name: Integrate
-    runs-on: ubuntu-latest
+  build:
+    name: Build
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
+    outputs:
+      version: ${{ steps.prepare.outputs.version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -52,29 +54,23 @@ jobs:
             echo "version_with_sha=${{ steps.semver.outputs.version }} (${{ github.sha }})" >> "$GITHUB_OUTPUT"
           else
             # Use the actual version when building from a tag
-            echo "version=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
-            echo "version_with_sha=${{ github.ref_name }} (${{ github.sha }})" >> "$GITHUB_OUTPUT"
+            echo "version=v0.0.0" >> "$GITHUB_OUTPUT"
+            echo "version_with_sha=v0.0.0 (${{ github.sha }})" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Build
+      - name: Build binaries for distribution
         env:
-          LICENSE: ${{ steps.prepare.outputs.license }}
           VERSION: ${{ steps.prepare.outputs.version_with_sha }}
         run: |
-          GOOS=darwin  GOARCH=amd64  OUT=bin/tmpl-darwin-amd64       make build
-          GOOS=darwin  GOARCH=arm64  OUT=bin/tmpl-darwin-arm64       make build
-          GOOS=linux   GOARCH=amd64  OUT=bin/tmpl-linux-amd64        make build
-          GOOS=linux   GOARCH=arm64  OUT=bin/tmpl-linux-arm64        make build
-          GOOS=windows GOARCH=amd64  OUT=bin/tmpl-windows-amd64.exe  make build
-          ls -lh bin
+          make dist
 
-      - name: Checksum
+      - name: Create checksums of the binaries
         run: |
           cd bin
-          sha256sum tmpl-* > checksums.txt
-          sha256sum --check checksums.txt
+          sha256sum tmpl-* > checksums.sha256
+          sha256sum --check checksums.sha256
 
-      - name: Run
+      - name: Test binaries
         run: |
           test_command() { echo "--------------"; echo "Testing: $1"; eval $1 || exit 1; }
           test_command "bin/tmpl-linux-amd64 --version"
@@ -88,7 +84,7 @@ jobs:
           name: artifacts
           path: |
             bin/tmpl-*
-            bin/checksums.txt
+            bin/checksums.sha256
             LICENSE
 
       - name: Tag commit version
@@ -97,23 +93,77 @@ jobs:
           git config user.name github-actions
           git config user.email github-actions@github.com
           git tag -a ${{ steps.prepare.outputs.version }} -m "${{ steps.prepare.outputs.version }}"
-          git push origin ${{ steps.semver.outputs.version }}
+          git push origin ${{ steps.prepare.outputs.version }}
 
-  deliver:
-    name: Deliver
-    needs: integrate
-    runs-on: ubuntu-latest
+  release:
+    name: Release
+    needs: build
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
-    if: startsWith(github.ref, 'refs/tags/v')
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: "0"
+
       - name: Download artifacts
         uses: actions/download-artifact@v4
-        with:
-          name: artifacts
 
+      - name: Setup artifacts
+        run: |
+          mv artifacts/bin .
+          rm -rf artifacts
+
+      - name: Generate Dockerfile
+        run: |
+          make Dockerfile
+          cat Dockerfile
+
+      - name: Check workspace
+        run: |
+          tree -hp
+
+      - name: Configure QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Configure Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Check Docker environment
+        run: |
+          set -x
+          docker version
+          docker buildx version
+
+      - name: Generate Docker image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository }}
+          tags: |
+            type=sha,prefix=commit-,format=long
+            type=raw,value=${{ needs.build.outputs.version }}
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
+          flavor: |
+            latest=false
+
+      # Always build the docker image, but only push it for version tags
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: ${{ startsWith(github.ref, 'refs/tags/v') }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      # Only draft a release for version tags
       - name: Draft a release
         uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/v')
         with:
           name: ${{ github.ref_name }}
           tag_name: ${{ github.ref_name }}
@@ -121,5 +171,5 @@ jobs:
           draft: true
           files: |
             bin/tmpl-*
-            bin/checksums.txt
+            bin/checksums.sha256
             LICENSE
