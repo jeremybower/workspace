@@ -52,8 +52,11 @@ jobs:
             # Use the prerelease version when building from main
             echo "version=${{ steps.semver.outputs.version }}" >> "$GITHUB_OUTPUT"
             echo "version_with_sha=${{ steps.semver.outputs.version }} (${{ github.sha }})" >> "$GITHUB_OUTPUT"
-          else
+          elif [[ "${{ github.ref }}" == "refs/tags/v"* ]]; then
             # Use the actual version when building from a tag
+            echo "version=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+            echo "version_with_sha=${{ github.ref_name }} (${{ github.sha }})" >> "$GITHUB_OUTPUT"
+          else
             echo "version=v0.0.0" >> "$GITHUB_OUTPUT"
             echo "version_with_sha=v0.0.0 (${{ github.sha }})" >> "$GITHUB_OUTPUT"
           fi
