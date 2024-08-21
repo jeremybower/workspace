@@ -145,7 +145,6 @@ jobs:
         id: prepare
         run: |
           [[ "${{ needs.build.outputs.version }}" =~ v([0-9]+)\.([0-9]+)\.([0-9]+) ]]
-          echo "major_version=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
           echo "major_minor_version=${BASH_REMATCH[1]}.${BASH_REMATCH[2]}" >> "$GITHUB_OUTPUT"
           echo "major_minor_patch_version=${BASH_REMATCH[1]}.${BASH_REMATCH[2]}.${BASH_REMATCH[3]}" >> "$GITHUB_OUTPUT"
 
@@ -157,7 +156,6 @@ jobs:
             ghcr.io/${{ github.repository }}
           tags: |
             type=sha,prefix=commit-,format=long
-            type=raw,value=${{ steps.prepare.outputs.major_version }}
             type=raw,value=${{ steps.prepare.outputs.major_minor_version }}
             type=raw,value=${{ steps.prepare.outputs.major_minor_patch_version }}
             type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') }}
