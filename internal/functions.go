@@ -1,6 +1,7 @@
 package internal
 
 import (
+	"fmt"
 	"path"
 	"text/template"
 )
@@ -61,7 +62,7 @@ func (f *Functions) includeFunc(filename string, data any) (string, error) {
 	// Load the template from the cache.
 	t, err := f.cache.Template(filename)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("%w: %s", err, filename)
 	}
 
 	// Execute the template.

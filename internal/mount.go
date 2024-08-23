@@ -75,6 +75,10 @@ func NewMount(fs afero.Fs, spec string) (*Mount, error) {
 		targetFiles = append(targetFiles, targetFile)
 	}
 
+	// Sort to enable binary search.
+	slices.Sort(targetDirs)
+	slices.Sort(targetFiles)
+
 	// Create the mount.
 	return &Mount{
 		fs:            fs,
@@ -140,7 +144,7 @@ func (m *Mount) Files(pattern string, files *[]string, excludeFns []func(string)
 func (m *Mount) ReadFileString(targetPath string) (string, error) {
 	_, ok := slices.BinarySearch(m.targetFiles, targetPath)
 	if !ok {
-		return "", os.ErrNotExist
+		return "", fmt.Errorf("%w: %s", os.ErrNotExist, targetPath)
 	}
 
 	sourcePath, err := m.pathConverter.TargetToSourcePath(targetPath)
@@ -150,7 +154,7 @@ func (m *Mount) ReadFileString(targetPath string) (string, error) {
 
 	b, err := afero.ReadFile(m.fs, sourcePath)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("error reading source file: %w: %s", err, sourcePath)
 	}
 
 	return string(b), nil
