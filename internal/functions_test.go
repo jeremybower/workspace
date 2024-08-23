@@ -72,17 +72,17 @@ func TestFilesFunc(t *testing.T) {
 	cache := NewTemplateCache(mounts, DefaultOptions())
 	funcs := NewFunctions(filename, mounts, cache)
 
-	dirs, err := funcs.filesFunc("/target/*")
+	files, err := funcs.filesFunc("/target/*")
 	require.NoError(t, err)
-	assert.ElementsMatch(t, dirs, []string{
+	assert.ElementsMatch(t, files, []string{
 		"/target/a",
 		"/target/b",
 		"/target/f",
 	})
 
-	dirs, err = funcs.filesFunc("/target/c/*")
+	files, err = funcs.filesFunc("/target/c/*")
 	require.NoError(t, err)
-	assert.ElementsMatch(t, dirs, []string{
+	assert.ElementsMatch(t, files, []string{
 		"/target/c/d",
 		"/target/c/e",
 	})
