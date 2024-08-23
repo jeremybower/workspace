@@ -75,6 +75,10 @@ func NewMount(fs afero.Fs, spec string) (*Mount, error) {
 		targetFiles = append(targetFiles, targetFile)
 	}
 
+	// Sort to enable binary search.
+	slices.Sort(targetDirs)
+	slices.Sort(targetFiles)
+
 	// Create the mount.
 	return &Mount{
 		fs:            fs,
