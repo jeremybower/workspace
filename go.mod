@@ -5,7 +5,7 @@ go 1.22.5
 require (
 	github.com/Masterminds/sprig/v3 v3.2.3
 	github.com/spf13/afero v1.11.0
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	github.com/urfave/cli/v2 v2.27.4
 	gopkg.in/yaml.v3 v3.0.1
 )
