@@ -1,15 +1,17 @@
 {
-  "editor.defaultFormatter": "esbenp.prettier-vscode",
   "editor.formatOnSave": true,
-  "[go]": {
-    "editor.defaultFormatter": "golang.go",
-    "editor.formatOnSave": true
+  "files.associations": {
+    "**/*.yml": "yaml",
+    "**/*.tmpl": "go-template"
+  },
+  "files.exclude": {
+    "**/._*": true
   },
   "files.insertFinalNewline": true,
   "files.trimFinalNewlines": true,
   "files.trimTrailingWhitespace": true,
-  "files.associations": {
-    "**/*.yml": "yaml",
-    "**/*.tmpl": "go-template"
+  "[go]": {
+    "editor.defaultFormatter": "golang.go",
+    "editor.formatOnSave": true
   }
 }

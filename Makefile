@@ -17,11 +17,22 @@ help: ## Show this help message.
 .PHONY: help
 
 #
+# Init
+#
+
+init: ## Initialize the project.
+init: docker-compose.local.yml
+.PHONY: init
+
+docker-compose.local.yml: ## Generate docker-compose.local.yml.
+docker-compose.local.yml:
+	@touch docker-compose.local.yml
+
+#
 # Build
 #
 
 build: ## Build the command for the host platform.
-build:
 	@mkdir -p bin
 	@echo "Building bin/tmpl${SUFFIX} with version ${VERSION}..."
 	@CGO_ENABLED=0 go build -ldflags="-X 'main.Version=${VERSION}'" -o bin/tmpl${SUFFIX} .
@@ -29,7 +40,6 @@ build:
 .PHONY: build
 
 dist: ## Build commands for all supported platforms.
-dist:
 	@GOOS=darwin  GOARCH=amd64  SUFFIX=-darwin-amd64  make --no-print-directory build
 	@GOOS=darwin  GOARCH=arm64  SUFFIX=-darwin-arm64  make --no-print-directory build
 	@GOOS=linux   GOARCH=amd64  SUFFIX=-linux-amd64   make --no-print-directory build
@@ -41,7 +51,6 @@ dist:
 #
 
 clean: ## Clean working directory.
-clean:
 	@rm -rf bin
 	@rm -rf coverage
 .PHONY: clean
@@ -63,14 +72,12 @@ endef
 export DOCKERFILE
 
 image: ## Build Docker image.
-image: Dockerfile
+image: | build Dockerfile
 	@docker build -t ghcr.io/jeremybower/tmpl:${TAG} .
 .PHONY: image
 
 Dockerfile: ## Generate Dockerfile.
-Dockerfile:
 	@echo "$$DOCKERFILE" > Dockerfile
-.PHONY: Dockerfile
 
 #
 # Test
@@ -91,3 +98,12 @@ test:
 		-html=coverage/coverage.out \
 		-o coverage/coverage.html
 .PHONY: test
+
+#
+# Modules
+#
+
+update: ## Update the go modules.
+	@go get -u ./...
+	@go mod tidy
+.PHONY: update

@@ -1,9 +1,0 @@
-{
-  "recommendations": [
-    "esbenp.prettier-vscode",
-    "golang.go",
-    "ms-azuretools.vscode-docker",
-    "streetsidesoftware.code-spell-checker-canadian-english",
-    "streetsidesoftware.code-spell-checker"
-  ]
-}
