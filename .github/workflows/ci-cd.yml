@@ -22,16 +22,22 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: "0"
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
-        with:
-          go-version-file: go.mod
+      - name: Prepare environment
+        run: |
+          echo "DEVTOOLS_USERNAME=$(id -un)" >> $GITHUB_ENV
+          echo "DEVTOOLS_UID=$(id -u)" >> $GITHUB_ENV
+          echo "DEVTOOLS_GID=$(id -g)" >> $GITHUB_ENV
+          echo "DOCKER_COMPOSE_CMD=docker compose -f docker-compose.yml" >> $GITHUB_ENV
 
-      - name: Setup dependencies
-        run: go mod download
+      - name: Start containers
+        run: |
+          make init
+          ${{ env.DOCKER_COMPOSE_CMD }} up --detach --wait
+          ${{ env.DOCKER_COMPOSE_CMD }} exec --user root devtools /usr/local/sbin/developermod ${{ env.DEVTOOLS_USERNAME }} ${{ env.DEVTOOLS_UID }} ${{ env.DEVTOOLS_GID }} /usr/bin/bash
 
       - name: Test
-        run: make test
+        run: |
+          ${{ env.DOCKER_COMPOSE_CMD }} exec --user ${{ env.DEVTOOLS_USERNAME }} --workdir /workspace devtools make test
 
       - name: Calculate prerelease version
         id: semver
@@ -65,7 +71,11 @@ jobs:
         env:
           VERSION: ${{ steps.prepare.outputs.version_with_sha }}
         run: |
-          make dist
+          ${{ env.DOCKER_COMPOSE_CMD }} exec --user ${{ env.DEVTOOLS_USERNAME }} --workdir /workspace devtools make dist
+
+      - name: Stop containers
+        run: |
+          ${{ env.DOCKER_COMPOSE_CMD }} down
 
       - name: Create checksums of the binaries
         run: |
